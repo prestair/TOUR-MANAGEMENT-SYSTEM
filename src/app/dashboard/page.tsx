@@ -136,7 +136,7 @@ export default function DashboardPage() {
 }
 
 function RecentClaims({ user }: { user: CurrentUser | null }) {
-  const [recent, setRecent] = useState<Claim & { claim_number: string; tour_purpose: string; created_at: string }[]>([])
+  const [recent, setRecent] = useState<Claim[]>([])
 
   useEffect(() => {
     if (!user) return

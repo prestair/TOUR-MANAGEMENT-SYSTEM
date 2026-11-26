@@ -50,7 +50,7 @@ export default function Sidebar({ role }: { role: UserRole }) {
       {/* Nav */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {filtered.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const isActive = pathname === item.href || (item.href !== '/dashboard' && (pathname ?? '').startsWith(item.href))
           return (
             <Link
               key={item.href}

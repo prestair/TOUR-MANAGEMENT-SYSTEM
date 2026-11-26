@@ -35,7 +35,7 @@ function fileToBase64(file: File): Promise<string> {
 export default function EditClaimPage() {
   const router = useRouter()
   const params = useParams()
-  const claimId = params.id as string
+  const claimId = params?.id as string
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [loading, setLoading] = useState(false)

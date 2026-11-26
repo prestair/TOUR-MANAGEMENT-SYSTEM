@@ -103,7 +103,7 @@ export default function ManagerPendingPage() {
   }, [allClaims, search])
 
   const userNames = useMemo(() =>
-    [...new Set(allClaims.map(c => c.submitted_by).filter(Boolean))], [allClaims])
+    Array.from(new Set(allClaims.map(c => c.submitted_by).filter(Boolean))), [allClaims])
 
   // ── Print ──────────────────────────────────────────────────
   const handlePrint = (claim: Claim) => {
