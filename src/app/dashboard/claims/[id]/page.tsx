@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import StatusBadge from '@/components/StatusBadge'
-import { FiCalendar, FiMapPin, FiDollarSign, FiMessageSquare, FiFileText, FiArrowLeft, FiCheckCircle, FiXCircle, FiClock, FiEye } from 'react-icons/fi'
+import { FiCalendar, FiMapPin, FiCreditCard, FiMessageSquare, FiFileText, FiArrowLeft, FiCheckCircle, FiXCircle, FiClock, FiEye } from 'react-icons/fi'
 import { getClaimById } from '@/lib/claims'
 import { Claim, Attachment } from '@/lib/types'
 
@@ -92,7 +92,7 @@ export default function ClaimDetailPage() {
           {/* Claimed Amount */}
           <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl">
             <span className="text-sm text-gray-600 flex items-center gap-2">
-              <FiDollarSign className="text-gray-400" /> Claimed Amount
+              <FiCreditCard className="text-gray-400" /> Claimed Amount
             </span>
             <span className="font-semibold text-gray-800">₹{claim.total_amount?.toLocaleString('en-IN')}</span>
           </div>

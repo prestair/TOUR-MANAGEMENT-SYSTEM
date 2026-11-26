@@ -1,32 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { format } from 'date-fns'
 import StatusBadge from '@/components/StatusBadge'
-import { ClaimStatus } from '@/lib/types'
 import { FiBarChart2, FiFileText } from 'react-icons/fi'
+import { getAllClaims, getClaimsByUser } from '@/lib/claims'
+import { Claim, SessionUser } from '@/lib/types'
 
-interface Claim {
-  id: string
-  claim_number: string
-  tour_purpose: string
-  site_name: string
-  tour_from_date: string
-  tour_to_date: string
-  total_amount: number
-  status: ClaimStatus
-  created_at: string
+function getSession(): SessionUser | null {
+  try {
+    const raw = document.cookie
+      .split('; ')
+      .find(r => r.startsWith('tbms_session='))
+      ?.split('=').slice(1).join('=')
+    if (!raw) return null
+    return JSON.parse(decodeURIComponent(raw))
+  } catch { return null }
 }
 
 export default function ReportsPage() {
   const [claims, setClaims] = useState<Claim[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const loadClaims = useCallback(async (u: SessionUser) => {
+    const data = u.role === 'admin' ? await getAllClaims() : await getClaimsByUser(u.id)
+    setClaims(data)
+    setLoading(false)
+  }, [])
 
   useEffect(() => {
-    const stored = localStorage.getItem('tbms_claims')
-    if (stored) {
-      try { setClaims(JSON.parse(stored)) } catch { setClaims([]) }
-    }
-  }, [])
+    const u = getSession()
+    if (!u) return
+    loadClaims(u)
+  }, [loadClaims])
 
   const total = claims.length
   const paid = claims.filter(c => c.status === 'paid').length
@@ -47,21 +53,21 @@ export default function ReportsPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card border-l-4 border-blue-500">
-          <p className="text-3xl font-bold text-blue-700">{total}</p>
+          <p className="text-3xl font-bold text-blue-700">{loading ? '...' : total}</p>
           <p className="text-sm text-gray-500 mt-1">Total Claims</p>
         </div>
         <div className="card border-l-4 border-green-500">
-          <p className="text-3xl font-bold text-green-700">{paid}</p>
+          <p className="text-3xl font-bold text-green-700">{loading ? '...' : paid}</p>
           <p className="text-sm text-gray-500 mt-1">Paid</p>
           <p className="text-xs text-green-600 font-medium mt-0.5">₹{totalAmt.toLocaleString('en-IN')}</p>
         </div>
         <div className="card border-l-4 border-yellow-500">
-          <p className="text-3xl font-bold text-yellow-700">{pending}</p>
+          <p className="text-3xl font-bold text-yellow-700">{loading ? '...' : pending}</p>
           <p className="text-sm text-gray-500 mt-1">In Progress</p>
           <p className="text-xs text-yellow-600 font-medium mt-0.5">₹{pendingAmt.toLocaleString('en-IN')}</p>
         </div>
         <div className="card border-l-4 border-red-500">
-          <p className="text-3xl font-bold text-red-700">{rejected}</p>
+          <p className="text-3xl font-bold text-red-700">{loading ? '...' : rejected}</p>
           <p className="text-sm text-gray-500 mt-1">Rejected</p>
         </div>
       </div>
@@ -71,7 +77,9 @@ export default function ReportsPage() {
         <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <h3 className="font-semibold text-gray-800">All Claims</h3>
         </div>
-        {claims.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-16 text-gray-400">Loading...</div>
+        ) : claims.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">

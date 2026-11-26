@@ -7,7 +7,7 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import {
   FiHome, FiPlusCircle, FiList, FiCheckSquare,
-  FiDollarSign, FiUsers, FiFileText, FiBarChart2,
+  FiCreditCard, FiUsers, FiFileText, FiBarChart2,
   FiChevronsLeft, FiChevronsRight
 } from 'react-icons/fi'
 
@@ -23,9 +23,9 @@ const navItems: NavItem[] = [
   { href: '/dashboard/claims/new', label: 'Submit Claim', icon: <FiPlusCircle />, roles: ['employee', 'manager', 'finance', 'admin'] },
   { href: '/dashboard/claims/my', label: 'My Claims', icon: <FiList />, roles: ['employee', 'manager', 'finance', 'admin'] },
   { href: '/dashboard/manager/pending', label: 'Manager Approval', icon: <FiCheckSquare />, roles: ['manager', 'admin'] },
-  { href: '/dashboard/finance/pending', label: 'Finance Approval', icon: <FiDollarSign />, roles: ['finance', 'admin'] },
+  { href: '/dashboard/manager/reports', label: 'Team Reports', icon: <FiBarChart2 />, roles: ['manager', 'admin'] },
+  { href: '/dashboard/finance/pending', label: 'Finance Approval', icon: <FiCreditCard />, roles: ['finance', 'admin'] },
   { href: '/dashboard/finance/payout', label: 'Payout', icon: <FiFileText />, roles: ['finance', 'admin'] },
-  { href: '/dashboard/reports', label: 'Reports', icon: <FiBarChart2 />, roles: ['manager', 'finance', 'admin'] },
   { href: '/dashboard/admin/users', label: 'User Management', icon: <FiUsers />, roles: ['admin'] },
 ]
 

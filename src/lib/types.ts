@@ -18,7 +18,8 @@ export interface LocalUser {
   role: UserRole
   department: string
   employee_code: string
-  manager_id: string | null
+  manager_id: string | null       // legacy single manager (kept for compatibility)
+  manager_ids?: string[]          // multi-manager (from user_managers table)
   created_at: string
 }
 

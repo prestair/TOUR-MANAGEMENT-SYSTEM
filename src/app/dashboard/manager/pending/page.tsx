@@ -4,14 +4,23 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { format } from 'date-fns'
 import {
   FiCheckSquare, FiFileText, FiSearch, FiX,
-  FiPrinter, FiDownload, FiEye, FiCalendar, FiMapPin, FiUser, FiMessageSquare, FiDollarSign
+  FiPrinter, FiDownload, FiEye, FiCalendar, FiMapPin, FiUser, FiMessageSquare, FiCreditCard
 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { getClaimsByStatus, updateClaimStatus } from '@/lib/claims'
-import { Claim, Attachment } from '@/lib/types'
+import { getEmployeeIdsByManager } from '@/lib/users'
+import { Claim, Attachment, SessionUser } from '@/lib/types'
 
 type ActionType = 'approve' | 'reject' | 'hold'
 interface ModalState { type: ActionType; claim: Claim }
+
+function getSession(): SessionUser | null {
+  try {
+    const raw = document.cookie.split('; ').find(r => r.startsWith('tbms_session='))?.split('=').slice(1).join('=')
+    if (!raw) return null
+    return JSON.parse(decodeURIComponent(raw))
+  } catch { return null }
+}
 
 // ─── Documents HTML builder ───────────────────────────────────────────────────
 function buildDocsHTML(claim: Claim): string {
@@ -82,10 +91,21 @@ export default function ManagerPendingPage() {
   const printFrameRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
-    getClaimsByStatus(['submitted', 'on_hold']).then(data => {
-      setAllClaims(data)
+    const session = getSession()
+    const isAdmin = session?.role === 'admin'
+
+    getClaimsByStatus(['submitted', 'on_hold']).then(async allPending => {
+      let visible = allPending
+
+      // Non-admin managers sirf apne assigned employees ki claims dekhein
+      if (!isAdmin && session?.id) {
+        const empIds = await getEmployeeIdsByManager(session.id)
+        visible = allPending.filter(c => empIds.includes(c.submitted_by_id))
+      }
+
+      setAllClaims(visible)
       const defaults: Record<string, string> = {}
-      data.forEach(c => { defaults[c.id] = String(c.total_amount) })
+      visible.forEach(c => { defaults[c.id] = String(c.total_amount) })
       setApproveAmounts(defaults)
       setLoading(false)
     })
@@ -248,10 +268,10 @@ export default function ManagerPendingPage() {
                   <tr key={claim.id} className="hover:bg-gray-50">
                     <td className="py-2.5 px-3 font-mono text-blue-600 font-medium whitespace-nowrap">{claim.claim_number}</td>
                     <td className="py-2.5 px-3 font-medium text-gray-800 whitespace-nowrap">{claim.submitted_by || '—'}</td>
-                    <td className="py-2.5 px-3 text-gray-700 max-w-[130px] truncate">{claim.tour_purpose}</td>
-                    <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">{claim.site_name}</td>
-                    <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">
-                      {format(new Date(claim.tour_from_date), 'dd MMM')} – {format(new Date(claim.tour_to_date), 'dd MMM yy')}
+                    <td className="py-2.5 px-3 text-gray-700 max-w-[130px]">{claim.tour_purpose}</td>
+                    <td className="py-2.5 px-3 text-gray-500">{claim.site_name}</td>
+                    <td className="py-2.5 px-3 text-gray-500">
+                      {format(new Date(claim.tour_from_date), 'dd-MMM-yy')} – {format(new Date(claim.tour_to_date), 'dd-MMM-yy')}
                     </td>
                     <td className="py-2.5 px-3 text-right font-semibold text-gray-700 whitespace-nowrap">
                       ₹{claim.total_amount?.toLocaleString('en-IN')}
@@ -394,7 +414,7 @@ export default function ManagerPendingPage() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <FiDollarSign className="text-blue-600" />
+                  <FiCreditCard className="text-blue-600" />
                   <span className="font-semibold text-blue-800">Total Bill Amount</span>
                 </div>
                 <span className="text-2xl font-bold text-blue-700">₹{viewClaim.total_amount?.toLocaleString('en-IN')}</span>

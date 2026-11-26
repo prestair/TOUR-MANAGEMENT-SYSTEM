@@ -16,7 +16,63 @@ export async function getUsers(): Promise<LocalUser[]> {
     .select('*')
     .order('created_at', { ascending: true })
   if (error) { console.error('getUsers:', error); return [] }
-  return data as LocalUser[]
+
+  // Attach manager_ids from user_managers table
+  const users = data as LocalUser[]
+  if (users.length === 0) return users
+
+  const { data: umData } = await supabase
+    .from('user_managers')
+    .select('user_id, manager_id')
+
+  const umMap: Record<string, string[]> = {}
+  for (const row of (umData || [])) {
+    if (!umMap[row.user_id]) umMap[row.user_id] = []
+    umMap[row.user_id].push(row.manager_id)
+  }
+
+  return users.map(u => ({ ...u, manager_ids: umMap[u.id] || [] }))
+}
+
+// Get all employee IDs assigned to a manager
+export async function getEmployeeIdsByManager(managerId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('user_managers')
+    .select('user_id')
+    .eq('manager_id', managerId)
+  if (error) return []
+  return (data || []).map(r => r.user_id)
+}
+
+// Get manager_ids for a single user
+export async function getManagerIdsForUser(userId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from('user_managers')
+    .select('manager_id')
+    .eq('user_id', userId)
+  return (data || []).map(r => r.manager_id)
+}
+
+// Replace all managers for a user
+export async function setManagersForUser(
+  userId: string,
+  managerIds: string[]
+): Promise<{ error: string | null }> {
+  // Delete existing
+  const { error: delError } = await supabase
+    .from('user_managers')
+    .delete()
+    .eq('user_id', userId)
+  if (delError) return { error: delError.message }
+
+  // Insert new
+  if (managerIds.length > 0) {
+    const { error: insError } = await supabase
+      .from('user_managers')
+      .insert(managerIds.map(mid => ({ user_id: userId, manager_id: mid })))
+    if (insError) return { error: insError.message }
+  }
+  return { error: null }
 }
 
 export async function getUserById(id: string): Promise<LocalUser | null> {
@@ -72,6 +128,12 @@ export async function addUser(
     .select()
     .single()
   if (error) return { user: null, error: error.message }
+
+  // Set multi-managers
+  if (userData.manager_ids && userData.manager_ids.length > 0) {
+    await setManagersForUser(id, userData.manager_ids)
+  }
+
   return { user: data as LocalUser, error: null }
 }
 
@@ -90,6 +152,13 @@ export async function updateUser(
 
   const { error } = await supabase.from('profiles').update(payload).eq('id', id)
   if (error) return { error: error.message }
+
+  // Update multi-managers if provided
+  if (updates.manager_ids !== undefined) {
+    const { error: mErr } = await setManagersForUser(id, updates.manager_ids)
+    if (mErr) return { error: mErr }
+  }
+
   return { error: null }
 }
 

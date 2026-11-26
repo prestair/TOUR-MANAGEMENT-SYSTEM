@@ -1,202 +1,195 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { FiFileText, FiClock, FiCheckCircle, FiDollarSign, FiTrendingUp, FiPlusCircle } from 'react-icons/fi'
+import { useState, useEffect, useCallback } from 'react'
+import { format } from 'date-fns'
 import Link from 'next/link'
+import StatusBadge from '@/components/StatusBadge'
+import { FiPlusCircle, FiEye, FiFileText, FiTrash2, FiEdit2 } from 'react-icons/fi'
+import toast from 'react-hot-toast'
+import { getClaimsByUser, getAllClaims, deleteClaim } from '@/lib/claims'
+import { Claim, SessionUser } from '@/lib/types'
 
-interface Claim {
-  id: string
-  status: string
-  total_amount: number
-  submitted_by_id?: string
-  submitted_by?: string
-}
-
-interface CurrentUser {
-  id: string
-  full_name: string
-  role: string
+function getSession(): SessionUser | null {
+  try {
+    const raw = document.cookie
+      .split('; ')
+      .find(r => r.startsWith('tbms_session='))
+      ?.split('=').slice(1).join('=')
+    if (!raw) return null
+    return JSON.parse(decodeURIComponent(raw))
+  } catch { return null }
 }
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<CurrentUser | null>(null)
-  const [stats, setStats] = useState({ total: 0, pending: 0, paid: 0, totalAmount: 0 })
+  const [claims, setClaims] = useState<Claim[]>([])
+  const [loading, setLoading] = useState(true)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
 
-  useEffect(() => {
-    // Current user
-    try {
-      const raw = localStorage.getItem('tbms_user')
-      if (raw) {
-        const u = JSON.parse(raw)
-        setUser({ id: u.id || u.username, full_name: u.full_name || u.username, role: u.role })
-      }
-    } catch { /* ignore */ }
+  const loadClaims = useCallback(async (user: SessionUser) => {
+    setLoading(true)
+    const data = user.role === 'admin'
+      ? await getAllClaims()
+      : await getClaimsByUser(user.id)
+    setClaims(data)
+    setLoading(false)
   }, [])
 
   useEffect(() => {
+    const user = getSession()
     if (!user) return
-    try {
-      const all: Claim[] = JSON.parse(localStorage.getItem('tbms_claims') || '[]')
+    setCurrentUser(user)
+    loadClaims(user)
+  }, [loadClaims])
 
-      // User ke hisaab se filter
-      const mine = user.role === 'admin'
-        ? all
-        : all.filter(c =>
-            c.submitted_by_id === user.id ||
-            (!c.submitted_by_id && c.submitted_by === user.full_name)
-          )
-
-      setStats({
-        total: mine.length,
-        pending: mine.filter(c => ['submitted', 'on_hold', 'manager_approved'].includes(c.status)).length,
-        paid: mine.filter(c => c.status === 'paid').length,
-        totalAmount: mine.reduce((sum, c) => sum + (c.total_amount || 0), 0),
-      })
-    } catch { /* ignore */ }
-  }, [user])
-
-  const greeting = () => {
-    const h = new Date().getHours()
-    if (h < 12) return 'Good Morning'
-    if (h < 17) return 'Good Afternoon'
-    return 'Good Evening'
+  const handleDelete = async (id: string) => {
+    const { error } = await deleteClaim(id)
+    if (error) { toast.error('Delete failed: ' + error); return }
+    setClaims(prev => prev.filter(c => c.id !== id))
+    setConfirmId(null)
+    toast.success('Claim deleted successfully')
   }
+
+  const claimToDelete = claims.find(c => c.id === confirmId)
 
   return (
-    <div className="space-y-6">
-      {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {greeting()}, {user?.full_name || '...'} 👋
-        </h1>
-        <p className="text-gray-500 mt-1 capitalize">
-          {user?.role} · Tour Bill Management System
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {currentUser?.role === 'admin' ? 'All Claims' : 'My Claims'}
+          </h1>
+          <p className="text-gray-500 mt-0.5">
+            {currentUser?.role === 'admin'
+              ? `System mein kul ${claims.length} claims`
+              : 'Track all your submitted tour bill claims'}
+          </p>
+        </div>
+        <Link href="/dashboard/claims/new" className="btn-primary flex items-center gap-2">
+          <FiPlusCircle /> New Claim
+        </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-            <FiFileText className="text-blue-600 text-xl" />
+      <div className="card p-0 overflow-hidden">
+        {loading ? (
+          <div className="text-center py-16 text-gray-400">Loading...</div>
+        ) : claims.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Claim No.</th>
+                  {currentUser?.role === 'admin' && (
+                    <th className="text-left py-3 px-4 text-gray-600 font-medium">Submitted By</th>
+                  )}
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Purpose</th>
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Site</th>
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Tour Period</th>
+                  <th className="text-right py-3 px-4 text-gray-600 font-medium">Amount (₹)</th>
+                  <th className="text-right py-3 px-4 text-gray-600 font-medium">Approved (₹)</th>
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Status</th>
+                  <th className="text-left py-3 px-4 text-gray-600 font-medium">Date</th>
+                  <th className="text-center py-3 px-4 text-gray-600 font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {claims.map((claim) => (
+                  <tr key={claim.id} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 font-mono text-blue-600 font-medium whitespace-nowrap">
+                      {claim.claim_number}
+                    </td>
+                    {currentUser?.role === 'admin' && (
+                      <td className="py-3 px-4 text-gray-700">{claim.submitted_by}</td>
+                    )}
+                    <td className="py-3 px-4 text-gray-700 max-w-xs truncate">{claim.tour_purpose}</td>
+                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">{claim.site_name}</td>
+                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
+                      {format(new Date(claim.tour_from_date), 'dd MMM')} – {format(new Date(claim.tour_to_date), 'dd MMM yy')}
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold text-blue-700">
+                      ₹{claim.total_amount?.toLocaleString('en-IN')}
+                    </td>
+                    <td className="py-3 px-4 text-right font-semibold">
+                      {claim.approved_amount != null
+                        ? <span className="text-green-700">₹{claim.approved_amount.toLocaleString('en-IN')}</span>
+                        : <span className="text-gray-300">—</span>
+                      }
+                    </td>
+                    <td className="py-3 px-4">
+                      <StatusBadge
+                        status={claim.status as any}
+                        remarks={claim.manager_remarks || claim.finance_remarks}
+                      />
+                    </td>
+                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
+                      {format(new Date(claim.created_at), 'dd MMM yyyy')}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <Link href={`/dashboard/claims/${claim.id}`}
+                          className="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                          <FiEye /> View
+                        </Link>
+                        {claim.status === 'on_hold' ? (
+                          <Link href={`/dashboard/claims/${claim.id}/edit`}
+                            className="inline-flex items-center gap-1 text-orange-600 hover:bg-orange-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                            <FiEdit2 /> Edit
+                          </Link>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed select-none">
+                            <FiEdit2 /> Edit
+                          </span>
+                        )}
+                        <button onClick={() => setConfirmId(claim.id)}
+                          className="inline-flex items-center gap-1 text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                          <FiTrash2 /> Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div>
-            <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-sm text-gray-500">Total Claims</p>
+        ) : (
+          <div className="text-center py-16 text-gray-400">
+            <FiFileText className="text-5xl mx-auto mb-3" />
+            <p className="font-medium">No claims yet</p>
+            <Link href="/dashboard/claims/new" className="text-blue-600 text-sm hover:underline mt-2 inline-block">
+              Submit your first claim →
+            </Link>
           </div>
-        </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-            <FiClock className="text-yellow-600 text-xl" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{stats.pending}</p>
-            <p className="text-sm text-gray-500">Pending</p>
-          </div>
-        </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-            <FiCheckCircle className="text-green-600 text-xl" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{stats.paid}</p>
-            <p className="text-sm text-gray-500">Paid</p>
-          </div>
-        </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-            <FiDollarSign className="text-purple-600 text-xl" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold">₹{stats.totalAmount.toLocaleString('en-IN')}</p>
-            <p className="text-sm text-gray-500">Total Amount</p>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="card">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-4">
-          <FiTrendingUp className="text-blue-500" /> Quick Actions
-        </h3>
-        <div className="flex gap-3 flex-wrap">
-          <Link href="/dashboard/claims/new" className="btn-primary flex items-center gap-2">
-            <FiPlusCircle /> Submit New Claim
-          </Link>
-          <Link href="/dashboard/claims/my" className="btn-secondary flex items-center gap-2">
-            <FiFileText /> {user?.role === 'admin' ? 'All Claims' : 'My Claims'}
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Claims */}
-      <RecentClaims user={user} />
-    </div>
-  )
-}
-
-function RecentClaims({ user }: { user: CurrentUser | null }) {
-  const [recent, setRecent] = useState<Claim[]>([])
-
-  useEffect(() => {
-    if (!user) return
-    try {
-      const all = JSON.parse(localStorage.getItem('tbms_claims') || '[]')
-      const mine = user.role === 'admin'
-        ? all
-        : all.filter((c: Claim) =>
-            c.submitted_by_id === user.id ||
-            (!c.submitted_by_id && (c as any).submitted_by === user.full_name)
-          )
-      setRecent(mine.slice(0, 5))
-    } catch { /* ignore */ }
-  }, [user])
-
-  const statusLabel: Record<string, string> = {
-    submitted: 'Pending', on_hold: 'On Hold',
-    manager_approved: 'Manager Approved', manager_rejected: 'Rejected',
-    finance_approved: 'Finance Approved', finance_rejected: 'Finance Rejected', paid: 'Paid',
-  }
-  const statusColor: Record<string, string> = {
-    submitted: 'bg-blue-100 text-blue-700', on_hold: 'bg-yellow-100 text-yellow-700',
-    manager_approved: 'bg-purple-100 text-purple-700', manager_rejected: 'bg-red-100 text-red-700',
-    finance_approved: 'bg-green-100 text-green-700', finance_rejected: 'bg-red-100 text-red-700',
-    paid: 'bg-emerald-100 text-emerald-700',
-  }
-
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-          <FiFileText className="text-blue-500" /> Recent Claims
-        </h3>
-        <Link href="/dashboard/claims/my" className="text-sm text-blue-600 hover:underline">View all</Link>
-      </div>
-      {recent.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">
-          <FiFileText className="text-4xl mx-auto mb-2" />
-          <p>No claims yet</p>
-          <Link href="/dashboard/claims/new" className="text-blue-600 text-sm hover:underline mt-2 inline-block">
-            Submit your first claim →
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {recent.map((c: any) => (
-            <div key={c.id} className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-gray-50 border border-gray-100">
-              <div>
-                <p className="font-mono text-sm text-blue-600 font-semibold">{c.claim_number}</p>
-                <p className="text-sm text-gray-700">{c.tour_purpose}</p>
-                <p className="text-xs text-gray-400">{c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN') : ''}</p>
+      {confirmId && claimToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-11 h-11 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <FiTrash2 className="text-red-600 text-xl" />
               </div>
-              <div className="text-right">
-                <p className="font-semibold text-gray-800">₹{(c.total_amount || 0).toLocaleString('en-IN')}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[c.status] || 'bg-gray-100 text-gray-600'}`}>
-                  {statusLabel[c.status] || c.status}
-                </span>
+              <div>
+                <h3 className="font-bold text-gray-900">Claim Delete Karein?</h3>
+                <p className="text-sm text-gray-500">Yeh action undo nahi hogi</p>
               </div>
             </div>
-          ))}
+            <div className="bg-gray-50 rounded-xl p-3 mb-5 space-y-1">
+              <p className="text-sm font-semibold text-blue-600">{claimToDelete.claim_number}</p>
+              <p className="text-sm text-gray-700">{claimToDelete.tour_purpose}</p>
+              <p className="text-sm text-gray-500">₹{claimToDelete.total_amount?.toLocaleString('en-IN')} · {claimToDelete.site_name}</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => handleDelete(confirmId)}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-red-600 hover:bg-red-700 text-white">
+                Haan, Delete Karein
+              </button>
+              <button onClick={() => setConfirmId(null)}
+                className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-gray-100 hover:bg-gray-200 text-gray-700">
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

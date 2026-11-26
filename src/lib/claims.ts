@@ -79,7 +79,28 @@ export async function createClaim(
   }
 ): Promise<{ claim: Claim | null; error: string | null }> {
   const id = `claim-${Date.now()}`
-  const claim_number = `TBC-${Date.now().toString().slice(-8)}`
+
+  // FY-based counter — e.g. 26-27/001, 26-27/002
+  const now = new Date()
+  const month = now.getMonth() + 1 // 1–12
+  const year = now.getFullYear()
+  const fyStart = month >= 4 ? year : year - 1
+  const fyLabel = `${String(fyStart).slice(-2)}-${String(fyStart + 1).slice(-2)}`
+
+  const { data: lastClaim } = await supabase
+    .from('claims')
+    .select('claim_number')
+    .like('claim_number', `${fyLabel}/%`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  let nextNum = 1
+  if (lastClaim?.claim_number) {
+    const match = lastClaim.claim_number.match(/\/(\d+)$/)
+    if (match) nextNum = parseInt(match[1], 10) + 1
+  }
+  const claim_number = `${fyLabel}/${String(nextNum).padStart(3, '0')}`
 
   const { data, error } = await supabase
     .from('claims')
@@ -203,6 +224,25 @@ export async function updateClaimFull(
   }
 
   return { error: null }
+}
+
+// Fetch claims for a list of employee IDs (manager's team report)
+export async function getClaimsByEmployeeIds(
+  employeeIds: string[],
+  statuses?: ClaimStatus[]
+): Promise<Claim[]> {
+  if (employeeIds.length === 0) return []
+  let query = supabase
+    .from('claims')
+    .select('*')
+    .in('submitted_by_id', employeeIds)
+    .order('created_at', { ascending: false })
+  if (statuses && statuses.length > 0) {
+    query = query.in('status', statuses)
+  }
+  const { data, error } = await query
+  if (error) { console.error('getClaimsByEmployeeIds:', error); return [] }
+  return attachExtras(data as Claim[])
 }
 
 // ── Delete ────────────────────────────────────────────────────
