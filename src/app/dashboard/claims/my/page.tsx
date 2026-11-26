@@ -130,11 +130,15 @@ export default function MyClaimsPage() {
                           className="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
                           <FiEye /> View
                         </Link>
-                        {claim.status === 'on_hold' && (
+                        {claim.status === 'on_hold' ? (
                           <Link href={`/dashboard/claims/${claim.id}/edit`}
                             className="inline-flex items-center gap-1 text-orange-600 hover:bg-orange-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
                             <FiEdit2 /> Edit
                           </Link>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed select-none">
+                            <FiEdit2 /> Edit
+                          </span>
                         )}
                         <button onClick={() => setConfirmId(claim.id)}
                           className="inline-flex items-center gap-1 text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">

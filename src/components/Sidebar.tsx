@@ -4,9 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserRole } from '@/lib/types'
 import clsx from 'clsx'
+import { useState } from 'react'
 import {
   FiHome, FiPlusCircle, FiList, FiCheckSquare,
-  FiDollarSign, FiUsers, FiFileText, FiBarChart2
+  FiDollarSign, FiUsers, FiFileText, FiBarChart2,
+  FiChevronsLeft, FiChevronsRight
 } from 'react-icons/fi'
 
 interface NavItem {
@@ -29,41 +31,60 @@ const navItems: NavItem[] = [
 
 export default function Sidebar({ role }: { role: UserRole }) {
   const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
 
   const filtered = navItems.filter(item => item.roles.includes(role))
 
   return (
-    <aside className="w-64 bg-blue-900 text-white flex flex-col h-full">
+    <aside
+      className={clsx(
+        'relative bg-blue-900 text-white flex flex-col h-full transition-all duration-300',
+        collapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      {/* Toggle Button */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-blue-700 hover:bg-blue-500 text-white rounded-full flex items-center justify-center shadow-md transition-colors"
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? <FiChevronsRight size={13} /> : <FiChevronsLeft size={13} />}
+      </button>
+
       {/* Logo */}
-      <div className="p-6 border-b border-blue-800">
+      <div className="p-4 border-b border-blue-800">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
             <FiFileText className="text-lg" />
           </div>
-          <div>
-            <p className="font-bold text-sm leading-tight">Tour Bill</p>
-            <p className="text-blue-300 text-xs">Management System</p>
-          </div>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <p className="font-bold text-sm leading-tight whitespace-nowrap">Tour Bill</p>
+              <p className="text-blue-300 text-xs whitespace-nowrap">Management System</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {filtered.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && (pathname ?? '').startsWith(item.href))
           return (
             <Link
               key={item.href}
               href={item.href}
+              title={collapsed ? item.label : ''}
               className={clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                collapsed ? 'justify-center' : '',
                 isActive
                   ? 'bg-blue-700 text-white'
                   : 'text-blue-200 hover:bg-blue-800 hover:text-white'
               )}
             >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
+              <span className="text-lg shrink-0">{item.icon}</span>
+              {!collapsed && <span className="whitespace-nowrap">{item.label}</span>}
             </Link>
           )
         })}
@@ -71,9 +92,15 @@ export default function Sidebar({ role }: { role: UserRole }) {
 
       {/* Role Badge */}
       <div className="p-4 border-t border-blue-800">
-        <span className="text-xs text-blue-300 uppercase tracking-wider">
-          Role: {role}
-        </span>
+        {collapsed ? (
+          <span className="text-xs text-blue-300 uppercase tracking-wider flex justify-center" title={`Role: ${role}`}>
+            {role.charAt(0).toUpperCase()}
+          </span>
+        ) : (
+          <span className="text-xs text-blue-300 uppercase tracking-wider">
+            Role: {role}
+          </span>
+        )}
       </div>
     </aside>
   )
