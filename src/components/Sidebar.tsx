@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { UserRole } from '@/lib/types'
+import { UserRole, ROLE_LABELS } from '@/lib/types'
 import clsx from 'clsx'
 import { useState } from 'react'
 import {
@@ -93,12 +93,12 @@ export default function Sidebar({ role }: { role: UserRole }) {
       {/* Role Badge */}
       <div className="p-4 border-t border-blue-800">
         {collapsed ? (
-          <span className="text-xs text-blue-300 uppercase tracking-wider flex justify-center" title={`Role: ${role}`}>
+          <span className="text-xs text-blue-300 uppercase tracking-wider flex justify-center" title={ROLE_LABELS[role]}>
             {role.charAt(0).toUpperCase()}
           </span>
         ) : (
           <span className="text-xs text-blue-300 uppercase tracking-wider">
-            Role: {role}
+            {ROLE_LABELS[role]}
           </span>
         )}
       </div>

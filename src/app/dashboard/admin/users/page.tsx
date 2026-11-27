@@ -5,10 +5,17 @@ import {
   FiUsers, FiPlus, FiEdit2, FiTrash2, FiX, FiSave,
   FiEye, FiEyeOff, FiSearch, FiAlertTriangle,
 } from 'react-icons/fi'
-import { LocalUser, UserRole } from '@/lib/types'
+import { LocalUser, UserRole, ROLE_LABELS } from '@/lib/types'
 import { getUsers, addUser, updateUser, deleteUser, usernameExists, roleColors } from '@/lib/users'
 
 const ROLES: UserRole[] = ['employee', 'manager', 'finance', 'admin']
+
+const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'employee', label: 'User' },
+  { value: 'manager', label: 'Approver' },
+  { value: 'finance', label: 'Finance Approver' },
+  { value: 'admin', label: 'Admin' },
+]
 
 const emptyForm = {
   username: '', password: '', full_name: '',
@@ -89,6 +96,7 @@ export default function UserManagementPage() {
       department: addForm.department.trim(),
       employee_code: addForm.employee_code.trim(),
       manager_id: addForm.manager_id || null,
+      is_active: true,
     })
     if (error) return setAddError(error)
     await reload()
@@ -155,6 +163,13 @@ export default function UserManagementPage() {
     setDeleteTarget(null)
   }
 
+  // ── Toggle Active/Inactive ────────────────────────────────
+  const handleToggleActive = async (u: LocalUser) => {
+    const { error } = await updateUser(u.id, { is_active: !u.is_active })
+    if (error) { alert('Update failed: ' + error); return }
+    await reload()
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -173,11 +188,11 @@ export default function UserManagementPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {ROLES.map(role => (
-          <div key={role} className="card text-center py-4">
-            <p className="text-2xl font-bold text-gray-800">{users.filter(u => u.role === role).length}</p>
-            <span className={`text-xs font-semibold mt-1 capitalize px-2 py-0.5 rounded-full inline-block ${roleColors[role]}`}>
-              {role}s
+        {ROLE_OPTIONS.map(({ value, label }) => (
+          <div key={value} className="card text-center py-4">
+            <p className="text-2xl font-bold text-gray-800">{users.filter(u => u.role === value).length}</p>
+            <span className={`text-xs font-semibold mt-1 px-2 py-0.5 rounded-full inline-block ${roleColors[value]}`}>
+              {label}
             </span>
           </div>
         ))}
@@ -191,9 +206,9 @@ export default function UserManagementPage() {
             className="input-field pl-9" placeholder="Naam, username, ya emp. code se search..." />
         </div>
         <select value={roleFilter} onChange={e => setRoleFilter(e.target.value as UserRole | '')}
-          className="input-field sm:w-44">
+          className="input-field sm:w-48">
           <option value="">All Roles</option>
-          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
       </div>
 
@@ -202,7 +217,7 @@ export default function UserManagementPage() {
         {loading ? (
           <div className="text-center py-16 text-gray-400">Loading...</div>
         ) : (
-          <table className="w-full text-sm min-w-[700px]">
+          <table className="w-full text-sm min-w-[800px]">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left py-3 px-4 text-gray-600 font-medium">#</th>
@@ -211,7 +226,7 @@ export default function UserManagementPage() {
                 <th className="text-left py-3 px-4 text-gray-600 font-medium">Role</th>
                 <th className="text-left py-3 px-4 text-gray-600 font-medium">Department</th>
                 <th className="text-left py-3 px-4 text-gray-600 font-medium">Emp. Code</th>
-                <th className="text-left py-3 px-4 text-gray-600 font-medium">Manager</th>
+                <th className="text-center py-3 px-4 text-gray-600 font-medium">Status</th>
                 <th className="text-center py-3 px-4 text-gray-600 font-medium">Actions</th>
               </tr>
             </thead>
@@ -219,10 +234,10 @@ export default function UserManagementPage() {
               {filtered.length === 0 ? (
                 <tr><td colSpan={8} className="text-center py-10 text-gray-400">Koi user nahi mila</td></tr>
               ) : filtered.map((u, i) => {
-                const mgr = users.find(m => m.id === u.manager_id)
                 const isSelf = u.id === currentUserId
+                const isActive = u.is_active !== false
                 return (
-                  <tr key={u.id} className={`hover:bg-gray-50 ${isSelf ? 'bg-blue-50/40' : ''}`}>
+                  <tr key={u.id} className={`hover:bg-gray-50 ${isSelf ? 'bg-blue-50/40' : ''} ${!isActive ? 'opacity-60' : ''}`}>
                     <td className="py-3 px-4 text-gray-400 text-xs">{i + 1}</td>
                     <td className="py-3 px-4 font-medium text-gray-800">
                       {u.full_name}
@@ -230,13 +245,26 @@ export default function UserManagementPage() {
                     </td>
                     <td className="py-3 px-4 font-mono text-blue-700 font-semibold">{u.username}</td>
                     <td className="py-3 px-4">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${roleColors[u.role]}`}>
-                        {u.role}
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${roleColors[u.role]}`}>
+                        {ROLE_LABELS[u.role]}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-600">{u.department || '-'}</td>
                     <td className="py-3 px-4 text-gray-600 font-mono text-xs">{u.employee_code || '-'}</td>
-                    <td className="py-3 px-4 text-gray-600 text-xs">{mgr?.full_name || '-'}</td>
+                    {/* Active/Inactive Toggle */}
+                    <td className="py-3 px-4 text-center">
+                      {!isSelf ? (
+                        <button
+                          onClick={() => handleToggleActive(u)}
+                          title={isActive ? 'Click to deactivate' : 'Click to activate'}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${isActive ? 'bg-green-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                      ) : (
+                        <span className="text-xs text-blue-500 font-medium">Active</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => openEdit(u)} title="Edit"
@@ -291,7 +319,7 @@ export default function UserManagementPage() {
               <Field label="Role" required>
                 <select value={addForm.role} onChange={e => setAddForm({ ...addForm, role: e.target.value as UserRole, manager_id: '' })}
                   className="input-field">
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </Field>
               <Field label="Employee Code">
@@ -339,7 +367,7 @@ export default function UserManagementPage() {
               <Field label="Role" required>
                 <select value={editForm.role} onChange={e => setEditForm({ ...editForm, role: e.target.value as UserRole, manager_id: '' })}
                   className="input-field">
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </Field>
               <Field label="Employee Code">

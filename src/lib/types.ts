@@ -1,5 +1,13 @@
 export type UserRole = 'employee' | 'manager' | 'finance' | 'admin'
 
+// Display labels for roles
+export const ROLE_LABELS: Record<UserRole, string> = {
+  employee: 'User',
+  manager: 'Approver',
+  finance: 'Finance Approver',
+  admin: 'Admin',
+}
+
 export type ClaimStatus =
   | 'submitted'
   | 'on_hold'
@@ -18,8 +26,9 @@ export interface LocalUser {
   role: UserRole
   department: string
   employee_code: string
-  manager_id: string | null       // legacy single manager (kept for compatibility)
-  manager_ids?: string[]          // multi-manager (from user_managers table)
+  manager_id: string | null
+  manager_ids?: string[]
+  is_active: boolean
   created_at: string
 }
 

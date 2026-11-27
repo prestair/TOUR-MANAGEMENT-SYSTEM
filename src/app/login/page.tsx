@@ -34,6 +34,12 @@ export default function LoginPage() {
         return
       }
 
+      if (user.is_active === false) {
+        setError('Aapka account inactive hai. Admin se contact karein.')
+        setLoading(false)
+        return
+      }
+
       if (user.password !== password) {
         setError('Password galat hai.')
         setLoading(false)

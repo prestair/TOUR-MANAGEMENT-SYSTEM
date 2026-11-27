@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { format } from 'date-fns'
 import { FiBarChart2, FiFileText, FiSearch, FiX, FiEye } from 'react-icons/fi'
 import Link from 'next/link'
@@ -28,21 +28,58 @@ const REPORT_STATUSES: ClaimStatus[] = [
   'finance_approved', 'finance_rejected', 'paid', 'submitted',
 ]
 
+// Highlight matching text
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query || !text) return <>{text}</>
+  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase()
+          ? <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5">{part}</mark>
+          : part
+      )}
+    </>
+  )
+}
+
 export default function ManagerReportsPage() {
   const [claims, setClaims] = useState<Claim[]>([])
   const [empNames, setEmpNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ClaimStatus | ''>('')
+
+  // Filter bar — employee + site only
   const [empFilter, setEmpFilter] = useState('')
+  const [siteFilter, setSiteFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<ClaimStatus | ''>('')
+
+  // Ctrl+F find bar
+  const [findQuery, setFindQuery] = useState('')
+  const [showFind, setShowFind] = useState(false)
+  const findRef = useRef<HTMLInputElement>(null)
+
+  // Keyboard listener for Ctrl+F
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        setShowFind(true)
+        setTimeout(() => findRef.current?.focus(), 50)
+      }
+      if (e.key === 'Escape') {
+        setShowFind(false)
+        setFindQuery('')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const load = useCallback(async () => {
     const session = getSession()
     if (!session) return
-
     const isAdmin = session.role === 'admin'
 
-    // Get employee IDs under this manager
     let empIds: string[] = []
     if (isAdmin) {
       const allUsers = await getUsers()
@@ -51,13 +88,11 @@ export default function ManagerReportsPage() {
       empIds = await getEmployeeIdsByManager(session.id)
     }
 
-    // Fetch their names for filter dropdown
     const allUsers = await getUsers()
     const nameMap: Record<string, string> = {}
     allUsers.filter(u => empIds.includes(u.id)).forEach(u => { nameMap[u.id] = u.full_name })
     setEmpNames(nameMap)
 
-    // Fetch claims
     const data = await getClaimsByEmployeeIds(empIds, REPORT_STATUSES)
     setClaims(data)
     setLoading(false)
@@ -65,40 +100,69 @@ export default function ManagerReportsPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Filter — employee + site only
   const filtered = useMemo(() => {
     return claims.filter(c => {
-      const q = search.trim().toLowerCase()
-      const matchSearch = !q ||
-        c.claim_number.toLowerCase().includes(q) ||
-        c.tour_purpose.toLowerCase().includes(q) ||
-        c.site_name.toLowerCase().includes(q) ||
-        (c.submitted_by || '').toLowerCase().includes(q)
-      const matchStatus = !statusFilter || c.status === statusFilter
       const matchEmp = !empFilter || c.submitted_by_id === empFilter
-      return matchSearch && matchStatus && matchEmp
+      const matchSite = !siteFilter || c.site_name.toLowerCase().includes(siteFilter.toLowerCase())
+      const matchStatus = !statusFilter || c.status === statusFilter
+      return matchEmp && matchSite && matchStatus
     })
-  }, [claims, search, statusFilter, empFilter])
+  }, [claims, empFilter, siteFilter, statusFilter])
 
-  // Stats
-  const stats = useMemo(() => ({
-    total: claims.length,
-    approved: claims.filter(c => ['manager_approved', 'finance_approved', 'paid'].includes(c.status)).length,
-    rejected: claims.filter(c => ['manager_rejected', 'finance_rejected'].includes(c.status)).length,
-    hold: claims.filter(c => c.status === 'on_hold').length,
-    totalAmt: claims.filter(c => ['manager_approved', 'finance_approved', 'paid'].includes(c.status))
-      .reduce((s, c) => s + (c.approved_amount ?? c.total_amount ?? 0), 0),
-  }), [claims])
+  // Unique sites for dropdown
+  const uniqueSites = useMemo(() =>
+    Array.from(new Set(claims.map(c => c.site_name).filter(Boolean))).sort()
+  , [claims])
 
   const uniqueEmps = Object.entries(empNames)
 
+  // Stats
+  const stats = useMemo(() => ({
+    total: filtered.length,
+    approved: filtered.filter(c => ['manager_approved', 'finance_approved', 'paid'].includes(c.status)).length,
+    rejected: filtered.filter(c => ['manager_rejected', 'finance_rejected'].includes(c.status)).length,
+    hold: filtered.filter(c => c.status === 'on_hold').length,
+    totalAmt: filtered.filter(c => ['manager_approved', 'finance_approved', 'paid'].includes(c.status))
+      .reduce((s, c) => s + (c.approved_amount ?? c.total_amount ?? 0), 0),
+  }), [filtered])
+
   return (
     <div className="space-y-5">
+
+      {/* Ctrl+F Find Bar */}
+      {showFind && (
+        <div className="fixed top-4 right-4 z-50 bg-white border border-yellow-300 shadow-xl rounded-xl px-4 py-3 flex items-center gap-3 min-w-[300px]">
+          <FiSearch className="text-yellow-500 flex-shrink-0" />
+          <input
+            ref={findRef}
+            value={findQuery}
+            onChange={e => setFindQuery(e.target.value)}
+            className="flex-1 outline-none text-sm text-gray-800 placeholder-gray-400"
+            placeholder="Table mein dhundho..."
+          />
+          {findQuery && (
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              {filtered.filter(c =>
+                Object.values(c).some(v => String(v ?? '').toLowerCase().includes(findQuery.toLowerCase()))
+              ).length} results
+            </span>
+          )}
+          <button onClick={() => { setShowFind(false); setFindQuery('') }}
+            className="text-gray-400 hover:text-gray-600">
+            <FiX />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <FiBarChart2 className="text-blue-500" /> Team Reports
-        </h1>
-        <p className="text-gray-500 mt-0.5">Apni team ke sabhi claims ki report</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <FiBarChart2 className="text-blue-500" /> Team Reports
+          </h1>
+          <p className="text-gray-500 mt-0.5">Apni team ke sabhi claims ki report · <span className="text-xs text-gray-400">Ctrl+F se table mein search karein</span></p>
+        </div>
       </div>
 
       {/* Stats */}
@@ -125,26 +189,26 @@ export default function ManagerReportsPage() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters — Employee + Site + Status */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            className="input-field pl-9 pr-8 text-sm" placeholder="Claim no, purpose, site, name..." />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <FiX className="text-sm" />
-            </button>
-          )}
-        </div>
         <select value={empFilter} onChange={e => setEmpFilter(e.target.value)} className="input-field sm:w-48 text-sm">
           <option value="">All Employees</option>
           {uniqueEmps.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        </select>
+        <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)} className="input-field sm:w-48 text-sm">
+          <option value="">All Sites</option>
+          {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as ClaimStatus | '')} className="input-field sm:w-44 text-sm">
           <option value="">All Status</option>
           {REPORT_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
         </select>
+        {(empFilter || siteFilter || statusFilter) && (
+          <button onClick={() => { setEmpFilter(''); setSiteFilter(''); setStatusFilter('') }}
+            className="text-sm text-red-500 hover:underline flex items-center gap-1">
+            <FiX size={14} /> Clear
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -155,10 +219,6 @@ export default function ManagerReportsPage() {
           <div className="text-center py-16 text-gray-400">
             <FiFileText className="text-5xl mx-auto mb-3" />
             <p className="font-medium">Koi claim nahi mila</p>
-            {(search || statusFilter || empFilter) && (
-              <button onClick={() => { setSearch(''); setStatusFilter(''); setEmpFilter('') }}
-                className="text-blue-600 text-sm mt-2 hover:underline">Clear filters</button>
-            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -179,11 +239,23 @@ export default function ManagerReportsPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map(claim => (
-                  <tr key={claim.id} className="hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono text-blue-600 font-medium whitespace-nowrap">{claim.claim_number}</td>
-                    <td className="py-3 px-4 font-medium text-gray-800 whitespace-nowrap">{claim.submitted_by || '—'}</td>
-                    <td className="py-3 px-4 text-gray-700 max-w-[140px] truncate">{claim.tour_purpose}</td>
-                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">{claim.site_name}</td>
+                  <tr key={claim.id} className={`hover:bg-gray-50 ${
+                    findQuery && Object.values(claim).some(v =>
+                      String(v ?? '').toLowerCase().includes(findQuery.toLowerCase())
+                    ) ? 'bg-yellow-50' : ''
+                  }`}>
+                    <td className="py-3 px-4 font-mono text-blue-600 font-medium whitespace-nowrap">
+                      <Highlight text={claim.claim_number} query={findQuery} />
+                    </td>
+                    <td className="py-3 px-4 font-medium text-gray-800 whitespace-nowrap">
+                      <Highlight text={claim.submitted_by || '—'} query={findQuery} />
+                    </td>
+                    <td className="py-3 px-4 text-gray-700 max-w-[140px] truncate">
+                      <Highlight text={claim.tour_purpose} query={findQuery} />
+                    </td>
+                    <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
+                      <Highlight text={claim.site_name} query={findQuery} />
+                    </td>
                     <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
                       {format(new Date(claim.tour_from_date), 'dd MMM')} – {format(new Date(claim.tour_to_date), 'dd MMM yy')}
                     </td>
@@ -194,7 +266,7 @@ export default function ManagerReportsPage() {
                         : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="py-3 px-4">
-                      <StatusBadge status={claim.status as any} remarks={claim.manager_remarks || claim.finance_remarks} />
+                      <StatusBadge status={claim.status} remarks={claim.manager_remarks || claim.finance_remarks} />
                     </td>
                     <td className="py-3 px-4 text-gray-500 whitespace-nowrap text-xs">
                       {format(new Date(claim.created_at), 'dd MMM yyyy')}
@@ -211,7 +283,7 @@ export default function ManagerReportsPage() {
             </table>
             <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 text-xs text-gray-500">
               {filtered.length} claim{filtered.length !== 1 ? 's' : ''} shown
-              {(search || statusFilter || empFilter) && ` (filtered from ${claims.length})`}
+              {(empFilter || siteFilter || statusFilter) && ` (filtered from ${claims.length})`}
             </div>
           </div>
         )}
