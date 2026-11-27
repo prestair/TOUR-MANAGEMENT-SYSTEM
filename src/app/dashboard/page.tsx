@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import StatusBadge from '@/components/StatusBadge'
-import { FiPlusCircle, FiEye, FiFileText, FiTrash2, FiEdit2 } from 'react-icons/fi'
+import { FiEye, FiFileText, FiTrash2, FiEdit2 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { getClaimsByUser, getAllClaims, deleteClaim } from '@/lib/claims'
 import { Claim, SessionUser } from '@/lib/types'
@@ -54,19 +54,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* Welcome Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Welcome Back, {currentUser?.full_name || '...'}
-          </h1>
-          <p className="text-gray-500 mt-0.5">
-            {currentUser?.role === 'admin' ? 'All Claims' : 'My Claims'} · Tour Bill Management System
-          </p>
-        </div>
-        <Link href="/dashboard/claims/new" className="btn-primary flex items-center gap-2">
-          <FiPlusCircle /> New Claim
-        </Link>
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">
+          {currentUser?.role === 'admin' ? 'All Claims' : 'My Claims'}
+        </h1>
+        <p className="text-gray-500 text-sm mt-0.5">
+          {currentUser?.role === 'admin'
+            ? `System mein kul ${claims.length} claims`
+            : 'Track all your submitted tour bill claims'}
+        </p>
       </div>
 
       <div className="card p-0 overflow-hidden">
