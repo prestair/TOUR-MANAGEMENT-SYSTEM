@@ -7,6 +7,8 @@ import { FiX, FiFile, FiImage, FiAlertCircle, FiPlus, FiPaperclip } from 'react-
 import { createClaim } from '@/lib/claims'
 import { SessionUser } from '@/lib/types'
 import { M } from '@/lib/messages'
+import Link from 'next/link'
+import { FiArrowLeft } from 'react-icons/fi'
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024
 
@@ -133,9 +135,16 @@ export default function NewClaimPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Submit Tour Bill Claim</h1>
-        <p className="text-gray-500 mt-1">Fill in your tour details and attach supporting documents</p>
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard"
+          className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+          title="Back to Dashboard">
+          <FiArrowLeft size={20} />
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Submit Tour Bill Claim</h1>
+          <p className="text-gray-500 mt-0.5 text-sm">Fill in your tour details and attach supporting documents</p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>

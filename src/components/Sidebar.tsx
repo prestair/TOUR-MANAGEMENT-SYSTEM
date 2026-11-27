@@ -6,7 +6,7 @@ import { UserRole, ROLE_LABELS } from '@/lib/types'
 import clsx from 'clsx'
 import { useState } from 'react'
 import {
-  FiHome, FiPlusCircle, FiList, FiCheckSquare,
+  FiHome, FiCheckSquare,
   FiCreditCard, FiUsers, FiFileText, FiBarChart2,
   FiChevronsLeft, FiChevronsRight, FiMenu, FiX
 } from 'react-icons/fi'
@@ -20,8 +20,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard',                  label: 'Dashboard',        icon: <FiHome />,        roles: ['employee','manager','finance','admin'] },
-  { href: '/dashboard/claims/new',       label: 'Submit Claim',     icon: <FiPlusCircle />,  roles: ['employee','manager','finance','admin'] },
-  { href: '/dashboard/claims/my',        label: 'My Claims',        icon: <FiList />,        roles: ['employee','manager','finance','admin'] },
   { href: '/dashboard/manager/pending',  label: 'Approvals',        icon: <FiCheckSquare />, roles: ['manager','admin'] },
   { href: '/dashboard/manager/reports',  label: 'Team Reports',     icon: <FiBarChart2 />,   roles: ['manager','admin'] },
   { href: '/dashboard/finance/pending',  label: 'Finance Approval', icon: <FiCreditCard />,  roles: ['finance','admin'] },
