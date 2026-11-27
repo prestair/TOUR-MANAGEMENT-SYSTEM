@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { FiX, FiFile, FiImage, FiAlertCircle, FiPlus, FiPaperclip } from 'react-icons/fi'
 import { createClaim } from '@/lib/claims'
 import { SessionUser } from '@/lib/types'
+import { M } from '@/lib/messages'
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024
 
@@ -92,12 +93,12 @@ export default function NewClaimPage() {
     e.preventDefault()
     const validFiles = files.filter(f => !f.error)
     if (validFiles.length === 0) {
-      toast.error('Please upload at least one bill/supporting document')
+      toast.error(`${M.claimNoDoc.en} (${M.claimNoDoc.hi})`)
       return
     }
 
     const user = getSession()
-    if (!user) { toast.error('Not logged in'); window.location.replace('/login'); return }
+    if (!user) { toast.error(`${M.claimNotLoggedIn.en} (${M.claimNotLoggedIn.hi})`); window.location.replace('/login'); return }
 
     setLoading(true)
     try {
@@ -121,10 +122,10 @@ export default function NewClaimPage() {
       })
 
       if (error) throw new Error(error)
-      toast.success('Claim submitted successfully!')
+      toast.success(`${M.claimSubmitSuccess.en} (${M.claimSubmitSuccess.hi})`)
       router.push('/dashboard/claims/my')
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Something went wrong')
+      toast.error(`${M.claimSubmitFail.en} (${M.claimSubmitFail.hi})`)
     } finally {
       setLoading(false)
     }

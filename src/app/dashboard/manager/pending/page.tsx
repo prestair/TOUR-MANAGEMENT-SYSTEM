@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { getClaimsByStatus, updateClaimStatus } from '@/lib/claims'
 import { getEmployeeIdsByManager } from '@/lib/users'
 import { Claim, Attachment, SessionUser } from '@/lib/types'
+import { M } from '@/lib/messages'
 
 type ActionType = 'approve' | 'reject' | 'hold'
 interface ModalState { type: ActionType; claim: Claim }
@@ -92,13 +93,13 @@ export default function ManagerPendingPage() {
 
   useEffect(() => {
     const session = getSession()
-    const isAdmin = session?.role === 'admin'
+    if (!session) return
 
     getClaimsByStatus(['submitted', 'on_hold']).then(async allPending => {
       let visible = allPending
 
-      // Non-admin managers sirf apne assigned employees ki claims dekhein
-      if (!isAdmin && session?.id) {
+      // Manager sirf apni assigned team ki claims dekhe
+      if (session.role !== 'admin' && session.id) {
         const empIds = await getEmployeeIdsByManager(session.id)
         visible = allPending.filter(c => empIds.includes(c.submitted_by_id))
       }
@@ -170,7 +171,7 @@ export default function ManagerPendingPage() {
   const openModal = (type: ActionType, claim: Claim) => {
     if (type === 'approve') {
       const amt = parseFloat(approveAmounts[claim.id] || '0')
-      if (!amt || amt <= 0) { toast.error('Pehle Approve Amount enter karein'); return }
+      if (!amt || amt <= 0) { toast.error(`${M.approveAmtRequired.en} (${M.approveAmtRequired.hi})`); return }
     }
     setModal({ type, claim })
     setRemarks('')
@@ -187,9 +188,10 @@ export default function ManagerPendingPage() {
         manager_remarks: remarks,
         manager_approved_at: new Date().toISOString(),
       })
+      const m = M.claimApproved(amt)
       if (error) { toast.error(error); return }
       setAllClaims(prev => prev.filter(c => c.id !== modal.claim.id))
-      toast.success(`Claim approved ₹${amt.toLocaleString('en-IN')}`)
+      toast.success(`${m.en} (${m.hi})`)
     }
 
     if (modal.type === 'reject') {
@@ -198,7 +200,7 @@ export default function ManagerPendingPage() {
       })
       if (error) { toast.error(error); return }
       setAllClaims(prev => prev.filter(c => c.id !== modal.claim.id))
-      toast.error('Claim rejected')
+      toast.error(`${M.claimRejected.en} (${M.claimRejected.hi})`)
     }
 
     if (modal.type === 'hold') {
@@ -207,7 +209,7 @@ export default function ManagerPendingPage() {
       })
       if (error) { toast.error(error); return }
       setAllClaims(prev => prev.map(c => c.id === modal.claim.id ? { ...c, status: 'on_hold' } : c))
-      toast('Claim on hold', { icon: '⏸️' })
+      toast(`${M.claimOnHold.en} (${M.claimOnHold.hi})`, { icon: '⏸️' })
     }
 
     setModal(null)
@@ -526,3 +528,4 @@ export default function ManagerPendingPage() {
     </div>
   )
 }
+

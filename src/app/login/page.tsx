@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { FiUser, FiLock, FiFileText, FiEye, FiEyeOff } from 'react-icons/fi'
 import { getUserByUsername } from '@/lib/users'
+import { M } from '@/lib/messages'
 
 function setSession(user: {
   id: string; username: string; full_name: string
@@ -29,19 +30,19 @@ export default function LoginPage() {
       const user = await getUserByUsername(username.trim())
 
       if (!user) {
-        setError('Username nahi mila. Admin se contact karein.')
+        setError(`${M.loginUserNotFound.en} (${M.loginUserNotFound.hi})`)
         setLoading(false)
         return
       }
 
       if (user.is_active === false) {
-        setError('Aapka account inactive hai. Admin se contact karein.')
+        setError(`${M.loginInactive.en} (${M.loginInactive.hi})`)
         setLoading(false)
         return
       }
 
       if (user.password !== password) {
-        setError('Password galat hai.')
+        setError(`${M.loginWrongPassword.en} (${M.loginWrongPassword.hi})`)
         setLoading(false)
         return
       }
@@ -60,7 +61,7 @@ export default function LoginPage() {
       window.location.replace('/dashboard')
     } catch (err) {
       console.error('Login error:', err)
-      setError('Server error: ' + (err instanceof Error ? err.message : String(err)))
+      setError(`${M.loginServerError.en} (${M.loginServerError.hi})`)
       setLoading(false)
     }
   }
@@ -119,9 +120,16 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <div className="text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {error.includes('(') ? (
+                <>
+                  <p className="text-red-600 font-medium">{error.split('(')[0].trim()}</p>
+                  <p className="text-red-500 mt-0.5 hindi text-xs">({error.split('(').slice(1).join('(')}</p>
+                </>
+              ) : (
+                <p className="text-red-600">{error}</p>
+              )}
+            </div>
           )}
 
           <button

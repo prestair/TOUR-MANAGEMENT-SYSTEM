@@ -8,6 +8,7 @@ import { FiEye, FiFileText, FiTrash2, FiEdit2 } from 'react-icons/fi'
 import toast from 'react-hot-toast'
 import { getClaimsByUser, getAllClaims, deleteClaim } from '@/lib/claims'
 import { Claim, SessionUser } from '@/lib/types'
+import { M } from '@/lib/messages'
 
 function getSession(): SessionUser | null {
   try {
@@ -44,10 +45,10 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: string) => {
     const { error } = await deleteClaim(id)
-    if (error) { toast.error('Delete failed: ' + error); return }
+    if (error) { toast.error(`${M.claimDeleteFail.en} (${M.claimDeleteFail.hi})`); return }
     setClaims(prev => prev.filter(c => c.id !== id))
     setConfirmId(null)
-    toast.success('Claim deleted successfully')
+    toast.success(`${M.claimDeleteSuccess.en} (${M.claimDeleteSuccess.hi})`)
   }
 
   const claimToDelete = claims.find(c => c.id === confirmId)
