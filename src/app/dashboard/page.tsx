@@ -128,24 +128,27 @@ export default function DashboardPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-2">
+                        {/* View */}
                         <Link href={`/dashboard/claims/${claim.id}`}
                           className="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
                           <FiEye /> View
                         </Link>
-                        {claim.status === 'on_hold' ? (
+
+                        {/* Edit — submitted ya on_hold mein allowed (manager ne action nahi liya) */}
+                        {['submitted', 'on_hold'].includes(claim.status) && (
                           <Link href={`/dashboard/claims/${claim.id}/edit`}
                             className="inline-flex items-center gap-1 text-orange-600 hover:bg-orange-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
                             <FiEdit2 /> Edit
                           </Link>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-gray-300 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed select-none">
-                            <FiEdit2 /> Edit
-                          </span>
                         )}
-                        <button onClick={() => setConfirmId(claim.id)}
-                          className="inline-flex items-center gap-1 text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
-                          <FiTrash2 /> Delete
-                        </button>
+
+                        {/* Delete — sirf admin aur manager ke paas */}
+                        {['admin', 'manager'].includes(currentUser?.role || '') && (
+                          <button onClick={() => setConfirmId(claim.id)}
+                            className="inline-flex items-center gap-1 text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                            <FiTrash2 /> Delete
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

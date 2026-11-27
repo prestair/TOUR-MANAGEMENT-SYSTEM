@@ -56,9 +56,9 @@ export default function EditClaimPage() {
     if (!claimId) return
     getClaimById(claimId).then((claim: Claim | null) => {
       if (!claim) { setNotFound(true); setFetching(false); return }
-      if (claim.status !== 'on_hold') {
-        toast.error('Sirf On Hold claims edit ho sakte hain')
-        router.push('/dashboard/claims/my')
+      if (!['on_hold', 'submitted'].includes(claim.status)) {
+        toast.error('Only pending or on-hold claims can be edited. (केवल लंबित या होल्ड दावे संपादित किए जा सकते हैं।)')
+        router.push('/dashboard')
         return
       }
       setForm({
