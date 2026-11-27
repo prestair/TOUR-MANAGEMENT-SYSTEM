@@ -147,7 +147,7 @@ export default function NewClaimPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} autoComplete="off">
         <div className="flex flex-col lg:flex-row gap-6 items-start">
 
           {/* LEFT — Tour Details */}
