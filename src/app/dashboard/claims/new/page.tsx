@@ -3,12 +3,11 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { FiX, FiFile, FiImage, FiAlertCircle, FiPlus, FiPaperclip } from 'react-icons/fi'
+import { FiX, FiFile, FiImage, FiAlertCircle, FiPlus, FiPaperclip, FiArrowLeft } from 'react-icons/fi'
 import { createClaim } from '@/lib/claims'
 import { SessionUser } from '@/lib/types'
 import { M } from '@/lib/messages'
 import Link from 'next/link'
-import { FiArrowLeft } from 'react-icons/fi'
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024
 
@@ -17,11 +16,6 @@ interface UploadFile {
   preview?: string
   base64?: string
   error?: string
-}
-
-interface CoWorker {
-  name: string
-  father_name: string
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -49,7 +43,6 @@ export default function NewClaimPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(false)
   const [files, setFiles] = useState<UploadFile[]>([])
-  const [coWorkers, setCoWorkers] = useState<CoWorker[]>([{ name: '', father_name: '' }])
 
   const [form, setForm] = useState({
     tour_purpose: '',
@@ -65,16 +58,12 @@ export default function NewClaimPage() {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const updateCoWorker = (index: number, field: keyof CoWorker, value: string) => {
-    setCoWorkers(prev => prev.map((cw, i) => i === index ? { ...cw, [field]: value } : cw))
-  }
-
   const handleFiles = async (selected: FileList | null) => {
     if (!selected) return
     const newFiles: UploadFile[] = []
     for (const file of Array.from(selected)) {
       if (file.size > MAX_FILE_SIZE) {
-        newFiles.push({ file, error: `Too large (${(file.size / 1024).toFixed(0)}KB). Max 1MB.` })
+        newFiles.push({ file, error: `File too large (${(file.size / 1024).toFixed(0)}KB). Max 1MB.` })
       } else {
         const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
         const base64 = await fileToBase64(file)
@@ -100,11 +89,15 @@ export default function NewClaimPage() {
     }
 
     const user = getSession()
-    if (!user) { toast.error(`${M.claimNotLoggedIn.en} (${M.claimNotLoggedIn.hi})`); window.location.replace('/login'); return }
+    if (!user) {
+      toast.error(`${M.claimNotLoggedIn.en} (${M.claimNotLoggedIn.hi})`)
+      window.location.replace('/login')
+      return
+    }
 
     setLoading(true)
     try {
-      const { claim, error } = await createClaim({
+      const { error } = await createClaim({
         submitted_by: user.full_name,
         submitted_by_id: user.id,
         sender_name: form.sender_name,
@@ -114,7 +107,7 @@ export default function NewClaimPage() {
         site_name: form.site_name,
         total_amount: parseFloat(form.total_amount) || 0,
         remarks: form.remarks,
-        co_workers: coWorkers.filter(cw => cw.name.trim()),
+        co_workers: [],
         attachments: validFiles.map(uf => ({
           name: uf.file.name,
           type: uf.file.type,
@@ -125,8 +118,8 @@ export default function NewClaimPage() {
 
       if (error) throw new Error(error)
       toast.success(`${M.claimSubmitSuccess.en} (${M.claimSubmitSuccess.hi})`)
-      router.push('/dashboard/claims/my')
-    } catch (err: unknown) {
+      router.push('/dashboard')
+    } catch {
       toast.error(`${M.claimSubmitFail.en} (${M.claimSubmitFail.hi})`)
     } finally {
       setLoading(false)
@@ -134,7 +127,8 @@ export default function NewClaimPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-5xl mx-auto space-y-4">
+      {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard"
           className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
@@ -142,8 +136,8 @@ export default function NewClaimPage() {
           <FiArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Submit Tour Bill Claim</h1>
-          <p className="text-gray-500 mt-0.5 text-sm">Fill in your tour details and attach supporting documents</p>
+          <h1 className="text-xl font-bold text-gray-900">Submit Tour Bill Claim</h1>
+          <p className="text-gray-500 text-sm">Fill in your tour details and attach supporting documents</p>
         </div>
       </div>
 
@@ -152,91 +146,81 @@ export default function NewClaimPage() {
 
           {/* LEFT — Tour Details */}
           <div className="card space-y-4 flex-1 w-full">
-            <h2 className="font-semibold text-gray-800 text-lg border-b pb-2">Tour Details</h2>
+            <h2 className="font-semibold text-gray-800 border-b pb-2">Tour Details</h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Purpose of Tour <span className="text-red-500">*</span>
                 </label>
                 <input name="tour_purpose" value={form.tour_purpose} onChange={handleChange}
-                  className="input-field" placeholder="e.g. Client visit, Site inspection" required />
+                  className="input-field" placeholder="e.g. Client visit, Site inspection"
+                  autoComplete="off" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Sender Name</label>
                 <input name="sender_name" value={form.sender_name} onChange={handleChange}
-                  className="input-field" placeholder="Sender ka naam" />
+                  className="input-field" placeholder="Sender name" autoComplete="off" />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Date <span className="text-red-500">*</span></label>
-                <input type="date" name="tour_from_date" value={form.tour_from_date} onChange={handleChange} className="input-field" required />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  From Date <span className="text-red-500">*</span>
+                </label>
+                <input type="date" name="tour_from_date" value={form.tour_from_date}
+                  onChange={handleChange} className="input-field" autoComplete="off" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To Date <span className="text-red-500">*</span></label>
-                <input type="date" name="tour_to_date" value={form.tour_to_date} onChange={handleChange} className="input-field" required />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  To Date <span className="text-red-500">*</span>
+                </label>
+                <input type="date" name="tour_to_date" value={form.tour_to_date}
+                  onChange={handleChange} className="input-field" autoComplete="off" required />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Site Name <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Site Name <span className="text-red-500">*</span>
+              </label>
               <input name="site_name" value={form.site_name} onChange={handleChange}
-                className="input-field" placeholder="e.g. Delhi Plant, Mumbai Office" required />
-            </div>
-
-            {/* Co-workers */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Co-worker Details</label>
-              {coWorkers.map((cw, i) => (
-                <div key={i} className="grid grid-cols-2 gap-3 items-start">
-                  <input value={cw.name} onChange={e => updateCoWorker(i, 'name', e.target.value)}
-                    className="input-field text-sm" placeholder={`Co-worker ${i + 1} naam`} />
-                  <div className="flex gap-2">
-                    <input value={cw.father_name} onChange={e => updateCoWorker(i, 'father_name', e.target.value)}
-                      className="input-field text-sm flex-1" placeholder="Pita ji ka naam" />
-                    {coWorkers.length > 1 && (
-                      <button type="button" onClick={() => setCoWorkers(prev => prev.filter((_, idx) => idx !== i))}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg flex-shrink-0">
-                        <FiX className="text-sm" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <button type="button" onClick={() => setCoWorkers(prev => [...prev, { name: '', father_name: '' }])}
-                className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium mt-1 px-1">
-                <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs">
-                  <FiPlus />
-                </span>
-                Add Co-worker
-              </button>
+                className="input-field" placeholder="e.g. Delhi Plant, Mumbai Office"
+                autoComplete="off" required />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Bill Amount (₹) <span className="text-red-500">*</span></label>
-              <input type="number" name="total_amount" value={form.total_amount} onChange={handleChange}
-                className="input-field" placeholder="0.00" min="0" step="0.01" required />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Total Bill Amount (₹) <span className="text-red-500">*</span>
+              </label>
+              <input type="number" name="total_amount" value={form.total_amount}
+                onChange={handleChange} className="input-field" placeholder="0.00"
+                min="0" step="0.01" autoComplete="off" required />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Remarks (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Remarks (Optional)
+              </label>
               <textarea name="remarks" value={form.remarks} onChange={handleChange}
-                className="input-field h-20 resize-none" placeholder="Any additional notes..." />
+                className="input-field h-20 resize-none" placeholder="Any additional notes..."
+                autoComplete="off" />
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="submit" disabled={loading} className="btn-primary flex-1 py-3 text-base">
+              <button type="submit" disabled={loading} className="btn-primary flex-1 py-3">
                 {loading ? 'Submitting...' : 'Submit Claim'}
               </button>
-              <button type="button" onClick={() => router.back()} className="btn-secondary px-6">Cancel</button>
+              <Link href="/dashboard" className="btn-secondary px-6 py-3 text-center">
+                Cancel
+              </Link>
             </div>
           </div>
 
           {/* RIGHT — Attach Documents */}
-          <div className="card w-full lg:w-80 space-y-4 flex-shrink-0">
-            <h2 className="font-semibold text-gray-800 text-lg border-b pb-2 flex items-center gap-2">
+          <div className="card w-full lg:w-72 space-y-4 flex-shrink-0">
+            <h2 className="font-semibold text-gray-800 border-b pb-2 flex items-center gap-2">
               <FiPaperclip className="text-blue-500" /> Attach Documents
             </h2>
             <p className="text-xs text-gray-500 flex items-start gap-1">
@@ -261,7 +245,8 @@ export default function NewClaimPage() {
                         {uf.error || `${(uf.file.size / 1024).toFixed(0)} KB`}
                       </p>
                     </div>
-                    <button type="button" onClick={() => removeFile(index)} className="text-gray-300 hover:text-red-500 p-1">
+                    <button type="button" onClick={() => removeFile(index)}
+                      className="text-gray-300 hover:text-red-500 p-1 flex-shrink-0">
                       <FiX />
                     </button>
                   </div>
@@ -270,15 +255,15 @@ export default function NewClaimPage() {
             )}
 
             <button type="button" onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-xl py-5 text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-colors text-base">
+              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-xl py-5 text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-colors">
               <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                <FiPlus className="text-base" />
+                <FiPlus />
               </span>
               {files.length === 0 ? 'Attach Document' : 'Attach More'}
             </button>
 
             <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf"
-              className="hidden" onChange={(e) => handleFiles(e.target.files)} />
+              className="hidden" onChange={e => handleFiles(e.target.files)} />
 
             {files.filter(f => !f.error).length > 0 && (
               <p className="text-xs text-center text-green-600 font-medium">
@@ -286,6 +271,7 @@ export default function NewClaimPage() {
               </p>
             )}
           </div>
+
         </div>
       </form>
     </div>
