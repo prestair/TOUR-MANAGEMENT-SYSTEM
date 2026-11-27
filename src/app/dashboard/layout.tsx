@@ -4,7 +4,6 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import { Profile } from '@/lib/types'
 
-// Force dynamic — har request pe fresh cookie read ho
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({
@@ -12,19 +11,16 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Cookie se session lo
   const cookieStore = await cookies()
   const sessionCookie = cookieStore.get('tbms_session')
 
-  if (!sessionCookie) {
-    redirect('/login')
-  }
+  if (!sessionCookie) redirect('/login')
 
   let profile: Profile
   try {
     const userData = JSON.parse(decodeURIComponent(sessionCookie.value))
     profile = {
-      id: userData.id || userData.username,   // actual user id (from users.ts)
+      id: userData.id || userData.username,
       full_name: userData.full_name,
       email: '',
       username: userData.username,
@@ -39,11 +35,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Sidebar — hidden on mobile, visible on md+ */}
       <Sidebar role={profile.role} />
-      <div className="flex-1 flex flex-col overflow-hidden">
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header profile={profile} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
           {children}
         </main>
       </div>
