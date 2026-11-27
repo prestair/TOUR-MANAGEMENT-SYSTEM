@@ -32,7 +32,13 @@ export default function DashboardPage() {
     const data = user.role === 'admin'
       ? await getAllClaims()
       : await getClaimsByUser(user.id)
-    setClaims(data)
+
+    // User ke liye sirf relevant claims dikhao — manager_approved hide karo
+    const visible = user.role === 'admin'
+      ? data
+      : data.filter(c => !['manager_approved'].includes(c.status))
+
+    setClaims(visible)
     setLoading(false)
   }, [])
 
