@@ -58,7 +58,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            Welcome Back, {currentUser?.full_name || '...'} 👋
+            Welcome Back, {currentUser?.full_name || '...'}
           </h1>
           <p className="text-gray-500 mt-0.5">
             {currentUser?.role === 'admin' ? 'All Claims' : 'My Claims'} · Tour Bill Management System
