@@ -28,7 +28,7 @@ const REPORT_STATUSES: ClaimStatus[] = [
   'finance_approved', 'finance_rejected', 'paid', 'submitted',
 ]
 
-// Highlight matching text
+// Highlight matching text — sirf yellow background
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query || !text) return <>{text}</>
   const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))
@@ -36,7 +36,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
     <>
       {parts.map((part, i) =>
         part.toLowerCase() === query.toLowerCase()
-          ? <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5">{part}</mark>
+          ? <mark key={i} className="bg-yellow-300 text-inherit rounded-sm px-0.5">{part}</mark>
           : part
       )}
     </>

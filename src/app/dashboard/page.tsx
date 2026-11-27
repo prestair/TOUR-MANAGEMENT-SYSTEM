@@ -54,15 +54,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
+      {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {currentUser?.role === 'admin' ? 'All Claims' : 'My Claims'}
+            Welcome Back, {currentUser?.full_name || '...'} 👋
           </h1>
           <p className="text-gray-500 mt-0.5">
-            {currentUser?.role === 'admin'
-              ? `System mein kul ${claims.length} claims`
-              : 'Track all your submitted tour bill claims'}
+            {currentUser?.role === 'admin' ? 'All Claims' : 'My Claims'} · Tour Bill Management System
           </p>
         </div>
         <Link href="/dashboard/claims/new" className="btn-primary flex items-center gap-2">
