@@ -95,7 +95,7 @@ export default function ManagerPendingPage() {
     const session = getSession()
     if (!session) return
 
-    getClaimsByStatus(['submitted', 'on_hold']).then(async allPending => {
+    getClaimsByStatus(['submitted']).then(async allPending => {
       let visible = allPending
 
       // Manager sirf apni assigned team ki claims dekhe
@@ -208,7 +208,7 @@ export default function ManagerPendingPage() {
         manager_remarks: remarks,
       })
       if (error) { toast.error(error); return }
-      setAllClaims(prev => prev.map(c => c.id === modal.claim.id ? { ...c, status: 'on_hold' } : c))
+      setAllClaims(prev => prev.filter(c => c.id !== modal.claim.id))
       toast(`${M.claimOnHold.en} (${M.claimOnHold.hi})`, { icon: '⏸️' })
     }
 
@@ -291,9 +291,7 @@ export default function ManagerPendingPage() {
                       </div>
                     </td>
                     <td className="py-2.5 px-3">
-                      {claim.status === 'on_hold'
-                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">⏸ On Hold</span>
-                        : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Pending</span>}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Pending</span>
                     </td>
                     <td className="py-2.5 px-3 text-gray-500 whitespace-nowrap">{format(new Date(claim.created_at), 'dd MMM yy')}</td>
                     <td className="py-2 px-3">
