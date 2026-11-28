@@ -14,6 +14,12 @@
 # production
 /build
 
+# electron icon source
+TMS_ICON.PNG
+
+# electron dist
+/dist
+
 # misc
 .DS_Store
 *.pem

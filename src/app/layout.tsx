@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: 'Tour Bill Management System',
   description: 'Company Tour Bill Submission and Approval System',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+  icons: {
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
 }
 
 export default function RootLayout({

@@ -78,8 +78,8 @@ export default function Sidebar({ role }: { role: UserRole }) {
 
         {/* Logo */}
         <div className="p-4 border-b border-blue-800 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
-            <FiFileText size={16} />
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+            <img src="/icon.png" alt="TMS" className="w-7 h-7 object-contain" />
           </div>
           {!collapsed && (
             <div>
@@ -106,8 +106,8 @@ export default function Sidebar({ role }: { role: UserRole }) {
       {/* ── Mobile Top Bar ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-blue-900 text-white flex items-center justify-between px-4 py-3 shadow-lg">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center">
-            <FiFileText size={14} />
+          <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center overflow-hidden">
+            <img src="/icon.png" alt="TMS" className="w-6 h-6 object-contain" />
           </div>
           <span className="font-bold text-sm">Tour Bill</span>
         </div>
@@ -127,8 +127,8 @@ export default function Sidebar({ role }: { role: UserRole }) {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-4 border-b border-blue-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <FiFileText size={15} />
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center overflow-hidden">
+                  <img src="/icon.png" alt="TMS" className="w-7 h-7 object-contain" />
                 </div>
                 <div>
                   <p className="font-bold text-sm">Tour Bill</p>

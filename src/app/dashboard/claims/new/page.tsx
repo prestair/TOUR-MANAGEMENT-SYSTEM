@@ -16,6 +16,74 @@ interface UploadFile {
   preview?: string
   base64?: string
   error?: string
+  sizeLabel?: string
+}
+
+// Compress image to under 1MB — aggressive
+async function compressImage(file: File): Promise<{ blob: Blob; base64: string }> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+
+      let { width, height } = img
+
+      // Start with max 1200px — enough for bill photos
+      const MAX_DIM = 1200
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) {
+          height = Math.round((height * MAX_DIM) / width)
+          width = MAX_DIM
+        } else {
+          width = Math.round((width * MAX_DIM) / height)
+          height = MAX_DIM
+        }
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, width, height)
+
+      const TARGET = 900 * 1024 // 900KB target
+
+      // Start at quality 0.8, keep reducing until under 900KB
+      // Also reduce dimensions if needed
+      const compress = (w: number, h: number, quality: number) => {
+        canvas.width = w
+        canvas.height = h
+        ctx.drawImage(img, 0, 0, w, h)
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve({ blob: new Blob(), base64: '' }); return }
+
+          if (blob.size > TARGET) {
+            if (quality > 0.2) {
+              // Reduce quality first
+              compress(w, h, parseFloat((quality - 0.1).toFixed(1)))
+            } else if (w > 600) {
+              // Then reduce size
+              compress(Math.round(w * 0.75), Math.round(h * 0.75), 0.7)
+            } else {
+              // Accept whatever we have
+              const reader = new FileReader()
+              reader.onload = () => resolve({ blob, base64: reader.result as string })
+              reader.readAsDataURL(blob)
+            }
+          } else {
+            const reader = new FileReader()
+            reader.onload = () => resolve({ blob, base64: reader.result as string })
+            reader.readAsDataURL(blob)
+          }
+        }, 'image/jpeg', quality)
+      }
+
+      compress(width, height, 0.8)
+    }
+    img.onerror = () => resolve({ blob: new Blob(), base64: '' })
+    img.src = url
+  })
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -54,23 +122,40 @@ export default function NewClaimPage() {
     remarks: '',
   })
 
+  const [compressing, setCompressing] = useState(false)
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
   const handleFiles = async (selected: FileList | null) => {
     if (!selected) return
+    setCompressing(true)
     const newFiles: UploadFile[] = []
     for (const file of Array.from(selected)) {
-      if (file.size > MAX_FILE_SIZE) {
-        newFiles.push({ file, error: `File too large (${(file.size / 1024).toFixed(0)}KB). Max 1MB.` })
+      if (file.type === 'application/pdf') {
+        if (file.size > MAX_FILE_SIZE) {
+          newFiles.push({ file, error: `PDF too large (${(file.size / 1024).toFixed(0)}KB). Max 1MB.` })
+        } else {
+          const base64 = await fileToBase64(file)
+          newFiles.push({ file, base64 })
+        }
+      } else if (file.type.startsWith('image/')) {
+        const original_kb = Math.round(file.size / 1024)
+        const { blob, base64 } = await compressImage(file)
+        const compressed_kb = Math.round(blob.size / 1024)
+        const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
+        const preview = URL.createObjectURL(blob)
+        const label = original_kb > compressed_kb
+          ? `${compressed_kb}KB (compressed from ${original_kb}KB)`
+          : `${compressed_kb}KB`
+        newFiles.push({ file: compressedFile, preview, base64, sizeLabel: label })
       } else {
-        const preview = file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
-        const base64 = await fileToBase64(file)
-        newFiles.push({ file, preview, base64 })
+        newFiles.push({ file, error: 'Only images and PDFs are allowed.' })
       }
     }
     setFiles(prev => [...prev, ...newFiles])
+    setCompressing(false)
   }
 
   const removeFile = (index: number) => {
@@ -241,8 +326,8 @@ export default function NewClaimPage() {
                         </div>}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-700 truncate">{uf.file.name}</p>
-                      <p className={`text-xs ${uf.error ? 'text-red-500' : 'text-gray-400'}`}>
-                        {uf.error || `${(uf.file.size / 1024).toFixed(0)} KB`}
+                      <p className={`text-xs ${uf.error ? 'text-red-500' : 'text-green-600'}`}>
+                        {uf.error || uf.sizeLabel || `${(uf.file.size / 1024).toFixed(0)} KB`}
                       </p>
                     </div>
                     <button type="button" onClick={() => removeFile(index)}
@@ -255,11 +340,21 @@ export default function NewClaimPage() {
             )}
 
             <button type="button" onClick={() => fileInputRef.current?.click()}
-              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-xl py-5 text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-colors">
-              <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                <FiPlus />
-              </span>
-              {files.length === 0 ? 'Attach Document' : 'Attach More'}
+              disabled={compressing}
+              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-xl py-5 text-blue-600 font-medium hover:border-blue-500 hover:bg-blue-50 transition-colors disabled:opacity-60 disabled:cursor-wait">
+              {compressing ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  Compressing...
+                </>
+              ) : (
+                <>
+                  <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                    <FiPlus />
+                  </span>
+                  {files.length === 0 ? 'Attach Document' : 'Attach More'}
+                </>
+              )}
             </button>
 
             <input ref={fileInputRef} type="file" multiple accept="image/*,.pdf"

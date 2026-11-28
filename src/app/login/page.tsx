@@ -71,8 +71,8 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
 
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
-            <FiFileText className="text-white text-3xl" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl mb-4 shadow-lg overflow-hidden">
+            <img src="/icon.png" alt="Tour Bill" className="w-14 h-14 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Tour Bill System</h1>
           <p className="text-gray-500 mt-1">Apne account mein sign in karein</p>
